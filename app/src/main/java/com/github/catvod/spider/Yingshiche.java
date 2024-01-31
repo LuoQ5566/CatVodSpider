@@ -1,17 +1,18 @@
 package com.github.catvod.spider;
 
-import android.content.Context;
 import android.text.TextUtils;
+
+import com.github.catvod.bean.Class;
+import com.github.catvod.bean.Result;
+import com.github.catvod.bean.Vod;
+import com.github.catvod.net.OkHttp;
+import com.github.catvod.utils.Util;
 
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-
-import com.github.catvod.crawler.Spider;
-import com.github.catvod.net.OkHttp;
-import com.github.catvod.utils.Util;
 
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -21,18 +22,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.github.catvod.bean.Result;
-import com.github.catvod.bean.Vod;
-import com.github.catvod.bean.Class;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
 /**
  * @author Qile
  */
 public class Yingshiche extends Ali {
 
-    private final String siteUrl = "https://www.weixine.net";
+    private final String siteUrl = "https://www.weixine.link";
 
     private Map<String, String> getHeader() {
         Map<String, String> header = new HashMap<>();
