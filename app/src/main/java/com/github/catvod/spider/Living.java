@@ -10,19 +10,21 @@ import com.github.catvod.bean.Result;
 import com.github.catvod.bean.Vod;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.net.OkHttp;
+import com.github.catvod.utils.Crypto;
 import com.github.catvod.utils.LZString;
-import com.github.catvod.utils.Util;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 
 /**
  * @author leospring
@@ -31,7 +33,7 @@ import java.util.Map;
 public class Living extends Spider {
 
     private String host = "https://lemonlive.deno.dev";
-    private String cookie = "";
+    private String cookie;
 
     @Override
     public void init(Context context, String extend) throws Exception {
@@ -134,7 +136,9 @@ public class Living extends Spider {
         } else {
             String[] split = tid.split("_");
             String url = host + "/api/" + split[0] + "/getCategoryRooms?id=" + split[1] + "&pid=" + (split[0].equals("bilibili") ? "2" : "1") + "&page=" + pg;
-            if (!TextUtils.isEmpty(cookie)) url = url + "&cookie=" + URLDecoder.decode(cookie, "UTF-8");
+            if (!TextUtils.isEmpty(cookie)) {
+                url = url + "&cookie=" + URLDecoder.decode(cookie, "UTF-8");
+            }
             JSONObject json = request(url);
             if (!TextUtils.isEmpty(json.optJSONObject("data").optString("cookie"))) {
                 cookie = json.optJSONObject("data").optString("cookie");
@@ -187,9 +191,46 @@ public class Living extends Spider {
 
     @Override
     public String playerContent(String flag, String id, List<String> vipFlags) throws Exception {
-        String url = id;
-        if (!url.startsWith("http")) url = "https:" + url;
-        return Result.get().url(url).toString();
+        if (!id.startsWith("http")) id = "https:" + id;
+        return Result.get().url(id).toString();
+    }
+
+    @Override
+    public String searchContent(String key, boolean quick) throws Exception {
+        return searchContent(key, quick, "1");
+    }
+
+    @Override
+    public String searchContent(String key, boolean quick, String pg) throws Exception {
+        List<Vod> vodList = new ArrayList<>();
+        vodList.addAll(searchWithSite("huya", key, pg));
+        vodList.addAll(searchWithSite("douyu", key, pg));
+        vodList.addAll(searchWithSite("douyin", key, pg));
+        vodList.addAll(searchWithSite("bilibili", key, pg));
+        return Result.string(vodList);
+    }
+
+    private String getSiteNameByEn(String en) {
+        return Objects.equals(en, "huya") ? "虎牙"
+                : Objects.equals(en, "douyu") ? "斗鱼"
+                : Objects.equals(en, "douyin") ? "抖音"
+                : Objects.equals(en, "bilibili") ? "哔哩哔哩"
+                : Objects.equals(en, "cc") ? "网易CC" : "";
+    }
+
+    private List<Vod> searchWithSite(String site, String key, String pg) {
+        try {
+            List<Vod> vodList = new ArrayList<>();
+            String url = host + "/api/" + site + "/searchRooms?page=" + pg + "&kw=" + key;
+            JSONArray jsonArray = request(url).optJSONObject("data").optJSONArray("list");
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject item = jsonArray.getJSONObject(i);
+                vodList.add(new Vod(site + "_" + item.optString("roomId"), item.optString("nickname"), item.optString("cover"), getSiteNameByEn(site) + "/" + item.optString("category") + "/" + item.optString("title"), false));
+            }
+            return vodList;
+        } catch (Exception ignored) {
+            return Collections.emptyList();
+        }
     }
 
     private String getHuyaParam(String name, String code) throws UnsupportedEncodingException {
@@ -201,12 +242,14 @@ public class Living extends Spider {
         String f = String.valueOf(currentTimeMillis + Long.parseLong(N));
         String fmPart = code.split("fm=")[1].split("&")[0];
         String c = new String(Base64.decode(URLDecoder.decode(fmPart, "UTF-8"), Base64.NO_WRAP)).split("_")[0];
-        String u = Util.MD5(f + "|tars_mp|102");
-        return String.format("&wsSecret=%s&uuid=%s&wsTime=%s&uid=%s&seqid=%s&fs=%s&ctype=tars_mp&t=102&ver=1&sv=2401310321", Util.MD5(c + "_" + N + "_" + name + "_" + u + "_" + s), i, s, N, f, r);
+        String u = Crypto.md5(f + "|tars_mp|102");
+        return String.format("&wsSecret=%s&uuid=%s&wsTime=%s&uid=%s&seqid=%s&fs=%s&ctype=tars_mp&t=102&ver=1&sv=2401310321", Crypto.md5(c + "_" + N + "_" + name + "_" + u + "_" + s), i, s, N, f, r);
     }
 
     private JSONObject request(String url) throws JSONException {
-        String str = OkHttp.string(url, Map.of("sec-fetch-site", "same-origin"));
+        HashMap<String, String> map = new HashMap<>();
+        map.put("sec-fetch-site", "same-origin");
+        String str = OkHttp.string(url, map);
         String result = LZString.decompressFromBase64(str.replaceAll(" ", ""));
         return new JSONObject(result);
     }

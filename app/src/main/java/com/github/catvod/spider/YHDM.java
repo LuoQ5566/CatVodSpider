@@ -25,6 +25,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author Qile
@@ -62,8 +64,7 @@ public class YHDM extends Spider {
             String pic = li.select("a").attr("data-original");
             if (!pic.startsWith("http")) pic = siteUrl + pic;
             String remark = li.select(".pic-text.text-right").text();
-            String year = li.select(".tag").text();
-            list.add(new Vod(vid, name, pic, remark, year));
+            list.add(new Vod(vid, name, pic, remark));
         }
         return Result.string(classes, list);
     }
@@ -79,8 +80,7 @@ public class YHDM extends Spider {
             String pic = li.select("a").attr("data-original");
             if (!pic.startsWith("http")) pic = siteUrl + pic;
             String remark = li.select(".pic-text.text-right").text();
-            String year = li.select(".tag").text();
-            list.add(new Vod(vid, name, pic, remark, year));
+            list.add(new Vod(vid, name, pic, remark));
         }
         return Result.string(list);
     }
@@ -108,10 +108,10 @@ public class YHDM extends Spider {
             }
         }
         String text = doc.select(".myui-content__detail").text();
-        String classifyName = Util.Matcher(text, "类型：(.*?)分类");
-        String area = Util.Matcher(text, "地区：(.*?)年份");
-        String year = Util.Matcher(text, "年份：(.*?)更新");
-        String remark = Util.Matcher(text, "更新：(.*?)简介");
+        String classifyName = matcher(text, "类型：(.*?)分类");
+        String area = matcher(text, "地区：(.*?)年份");
+        String year = matcher(text, "年份：(.*?)更新");
+        String remark = matcher(text, "更新：(.*?)简介");
         String brief = doc.select(".col-pd.text-collapse .data").text();
 
         Vod vod = new Vod();
@@ -137,8 +137,7 @@ public class YHDM extends Spider {
             String pic = li.select("a").attr("data-original");
             if (!pic.startsWith("http")) pic = siteUrl + pic;
             String remark = li.select(".pic-text.text-right").text();
-            String year = li.select(".tag").text();
-            list.add(new Vod(vid, name, pic, remark, year));
+            list.add(new Vod(vid, name, pic, remark));
         }
         return Result.string(list);
     }
@@ -150,22 +149,27 @@ public class YHDM extends Spider {
         String ConfigUrl = siteUrl + "/static/js/playerconfig.js?t=" + todayDate;
         if (!configCache.containsKey(ConfigUrl)) {
             String ConfigContent = OkHttp.string(ConfigUrl, getHeader());
-            String ConfigObject = Util.Matcher(ConfigContent, "player_list=(.*?),MacPlayerConfig");
+            String ConfigObject = matcher(ConfigContent, "player_list=(.*?),MacPlayerConfig");
             configCache.put(ConfigUrl, ConfigObject);
         }
         String content = OkHttp.string(siteUrl + id, getHeader());
-        String json = Util.Matcher(content, "player_aaaa=(.*?)</script>");
+        String json = matcher(content, "player_aaaa=(.*?)</script>");
         JSONObject player = new JSONObject(json);
         String aaaaUrl = player.getString("url");
         String from = player.getString("from");
         String parseUrl = new JSONObject(configCache.get(ConfigUrl)).getJSONObject(from).getString("parse");
         String parseUrls = parseUrl + aaaaUrl;
         String content1 = OkHttp.string(parseUrls, getHeader());
-        String playUrl = Util.Matcher(content1, "getVideoInfo\\(\"(.*?)\"");
+        String playUrl = matcher(content1, "getVideoInfo\\(\"(.*?)\"");
         String key = "57A891D97E332A9D";
-        String iv = Util.Matcher(content1, "bt_token = \"(.*?)\"");
+        String iv = matcher(content1, "bt_token = \"(.*?)\"");
         String realUrl = Crypto.CBC(playUrl, key, iv);
         if (realUrl == null) return Result.get().url(siteUrl + id).parse().string();
         return Result.get().url(realUrl).string();
+    }
+
+    private String matcher(String content, String pattern) {
+        Matcher matcher = Pattern.compile(pattern).matcher(content);
+        return matcher.find() ? matcher.group(1) : "";
     }
 }
