@@ -2,12 +2,12 @@
 -flattenpackagehierarchy com.github.catvod.spider.merge
 
 # dontwarn
--dontwarn org.slf4j.impl.**
+-dontwarn org.slf4j.**
 -dontwarn org.xmlpull.v1.**
 -dontwarn android.content.res.**
 
 # slf4j
--keep class org.slf4j.** { *; }
+-keep class org.slf4j.ILoggerFactory { *; }
 
 # AndroidX
 -keep class androidx.core.** { *; }
